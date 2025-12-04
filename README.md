@@ -1,7 +1,12 @@
 # ContourDiff
 Contour-Guided Diffusion Models for Unpaired Image-to-Image Translation
 
-[![arXiv Paper](https://img.shields.io/badge/arXiv-2403.10786-orange.svg?style=flat)](https://arxiv.org/abs/2403.10786)
+[![arXiv Paper](https://img.shields.io/badge/arXiv-2403.10786-orange.svg?style=flat)](https://arxiv.org/abs/2403.10786)[![MELBA](https://img.shields.io/badge/arXiv-2403.10786-blue.svg?style=flat)](https://www.melba-journal.org/papers/2025:031.html)
+
+## News!
+
+### Nov 2025
+🎉 Our paper has been **accepted to Machine Learning for Biomedical Imaging (MELBA Journal)**!
 
 #### By [Yuwen Chen](https://scholar.google.com/citations?user=61s49p0AAAAJ&hl=en), [Nicholas Konz](https://nickk124.github.io/), [Hanxue Gu](https://scholar.google.com/citations?user=aGjCpQUAAAAJ&hl=en), [Haoyu Dong](https://scholar.google.com/citations?user=eZVEUCIAAAAJ&hl=en), [Yaqian Chen](https://scholar.google.com/citations?user=iegKFuQAAAAJ&hl=en), [Lin Li](https://orcid.org/0009-0009-5433-6777), [Jisoo Lee](https://scholar.google.com/citations?user=6klcF3MAAAAJ) and [Maciej Mazurowski](https://sites.duke.edu/mazurowski/)
 

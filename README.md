@@ -40,6 +40,11 @@ Please cite our paper if you use our code or reference our work:
 ## Getting Started
 Please follow the steps below to have your own ContourDiff model!
 
+## 0) Create environment
+```bash
+conda env create -f environment.yml \
+```
+
 ## 1) Preprocess data and extract contours
 To extract the contours, run command:
 ```bash
@@ -220,6 +225,22 @@ Notice:
 1. `VOLUME_SPECIFIER` and `SLICE_SPECIFIER` are required to enable `by_volume` translation, which means the meta file should include corresponding columns.
 2. `NUM_PARTITION` and `PARTITION` are aimed for translation in parallel.
 3. `PARTITION` is within range [0, `NUM_PARTITION` - 1].
+
+## Segmentation
+Run following command for segmenation training and evaluation:
+
+```bash
+python segmentation.py \
+  --arch {ARCH} \
+  --gpuid {GPUID} \
+```
+
+```bash
+python segmentation_eval.py \
+```
+
+Notice:
+1. `ARCH` currently only support `unet` and `swinunet`
 
 ## License
 All codes in this repository are under [Apache 2.0](./LICENSE).

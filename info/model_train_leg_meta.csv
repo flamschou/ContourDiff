@@ -1,0 +1,11 @@
+,Echo Time,Repetition Time,Slice Thickness,Contrast Agent,Sequence Name,Field Strength,Study Year,Scanning Sequence,Series Description,Pixel Spacing,Pixel Spacing Row (mm),Pixel Spacing Col (mm),Modality,Rows,Columns
+0,10.0,666.0,4.0,,*tse2d1_3,3.0,2000,SE,ax t1,"(1.0416666269302, 1.0416666269302)",1.0416666269302,1.0416666269302,MR,384,384
+1,10.0,614.0,4.0,,*tse2d1_3,3.0,2000,SE,ax t1 dixon left_F,"(1.1875, 1.1875)",1.1875,1.1875,MR,220,320
+2,10.948,533.332,4.0,,,1.5,2000,SE,ax t1 right,"(0.351562, 0.351563)",0.351562,0.351563,MR,512,512
+3,9.464,720.0,5.0,,,1.5,2000,SE,ax t1,"(0.4688, 0.4688)",0.4688,0.4688,MR,512,512
+4,8.584,433.0,5.0,,,1.5,2000,SE,ax t1 right,"(0.4102, 0.4102)",0.4102,0.4102,MR,512,512
+5,9.6,440.0,5.0,,*tse2d1_3,1.5,2000,SE,ax t1 lower right,"(0.625, 0.625)",0.625,0.625,MR,320,320
+6,11.0,620.0,5.0,,*tse2d1_3,1.5,2000,SE,ax t1,"(0.625, 0.625)",0.625,0.625,MR,270,320
+7,9.6,550.0,7.0,Multihance,*tse2d1_3,1.5,2000,SE,ax t1 right  lower +c,"(0.625, 0.625)",0.625,0.625,MR,320,320
+8,9.6,550.0,7.0,Multihance,*tse2d1_3,1.5,2000,SE,ax t1 right  lower +c,"(0.625, 0.625)",0.625,0.625,MR,320,320
+9,9.512,692.0,5.0,10 MULTIHANCE,,1.5,2000,SE,ax t1 +c,"(0.4688, 0.4688)",0.4688,0.4688,MR,512,512

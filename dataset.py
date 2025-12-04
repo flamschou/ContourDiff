@@ -89,3 +89,69 @@ class ContourDiffDataset(Dataset):
             "image_name": img_name,
             "contour_name": contour_name,
         }
+    
+class SegmentationDataset(Dataset):
+    def __init__(self, df_meta, image_directory, mask_directory=None, class_specifier=None, generator_seed=None, transform_img=None, train_pre_transform_img=None, transform_mask=None): 
+        self.df_meta = df_meta
+        
+        self.image_directory = image_directory
+        
+        if mask_directory:
+            self.mask_directory = mask_directory
+        else:
+            self.mask_directory = image_directory
+        
+        self.length = len(self.df_meta)
+        self.class_specifier = class_specifier
+        
+        self.generator_seed = generator_seed
+        if self.generator_seed is not None:
+            self.seed_generator = torch.Generator().manual_seed(self.generator_seed)
+            
+        self.transform_img = transform_img
+        self.train_pre_transform_img = train_pre_transform_img
+        self.transform_mask = transform_mask
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        img_name = self.df_meta.iloc[index]["image_name"]
+        img = Image.open(os.path.join(self.image_directory, img_name)).convert("RGB")
+        
+        mask_name = self.df_meta.iloc[index]["mask_name"]
+        mask = Image.open(os.path.join(self.mask_directory, mask_name))
+
+        np_mask = np.array(mask)
+
+        if self.class_specifier is not None:
+            np_mask = np.isin(np_mask, self.class_specifier).astype("uint8") * 255
+            
+        mask = Image.fromarray(np_mask)
+        
+        if self.train_pre_transform_img is not None:
+            img = self.train_pre_transform_img(img)
+        
+        if self.generator_seed is not None:
+            seed = self.seed_generator.seed()
+        
+        if self.transform_img is not None:
+            if self.generator_seed is not None:
+                torch.manual_seed(seed)
+                torch.random.manual_seed(seed)
+                random.seed(seed)
+            img = self.transform_img(img)
+            
+        if self.transform_mask is not None:
+            if self.generator_seed is not None:
+                torch.manual_seed(seed)
+                torch.random.manual_seed(seed)
+                random.seed(seed)
+            mask = self.transform_mask(mask)  
+
+        return {
+            "image": img, 
+            "mask": mask, 
+            "image_name": img_name, 
+            "mask_name": img_name
+        }

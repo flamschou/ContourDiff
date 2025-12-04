@@ -1,7 +1,7 @@
 # ContourDiff
 Contour-Guided Diffusion Models for Unpaired Image-to-Image Translation
 
-[![arXiv Paper](https://img.shields.io/badge/arXiv-2403.10786-orange.svg?style=flat)](https://arxiv.org/abs/2403.10786)[![MELBA](https://img.shields.io/badge/MELBA-10.59275/j.melba.2025-79a2-blue.svg?style=flat)](https://www.melba-journal.org/papers/2025:031.html)
+[![arXiv Paper](https://img.shields.io/badge/arXiv-2403.10786-orange.svg?style=flat)](https://arxiv.org/abs/2403.10786)[![MELBA](https://img.shields.io/badge/MELBA-2025:031-blue.svg?style=flat)](https://www.melba-journal.org/papers/2025:031.html)
 
 ## News!
 

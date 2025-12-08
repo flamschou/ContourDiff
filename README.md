@@ -29,11 +29,14 @@ Great thanks to [Segmentation-guided Diffusion](https://github.com/mazurowski-la
 
 Please cite our paper if you use our code or reference our work:
 ```bib
-@article{chen2024contourdiff,
-  title={ContourDiff: Unpaired Image Translation with Contour-Guided Diffusion Models},
-  author={Chen, Yuwen and Konz, Nicholas and Gu, Hanxue and Dong, Haoyu and Chen, Yaqian and Li, Lin and Lee, Jisoo and Mazurowski, Maciej A},
-  journal={arXiv preprint arXiv:2403.10786},
-  year={2024}
+@article{chen2025contourdiff,
+  title={ContourDiff: Unpaired Medical Image Translation with Structural Consistency},
+  author={Chen, Yuwen and Konz, Nicholas and Gu, Hanxue and Dong, Haoyu and Chen, Yaqian and Li, Lin and Lee, Jisoo and Mazurowski, Maciej A and others},
+  journal={Machine Learning for Biomedical Imaging},
+  volume={3},
+  number={November 2025 issue},
+  pages={711--727},
+  year={2025}
 }
 ```
 

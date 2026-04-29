@@ -1,2 +1,7 @@
 .ipynb_checkpoints/*
 __pycache__/*
+.venv
+data_test/
+runs/*
+.DS_Store
+split.json

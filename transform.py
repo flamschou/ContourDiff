@@ -30,7 +30,7 @@ class TrainTransform:
 
     Interpolation order:
       - image  → order=1 (bilinear) to preserve soft intensities
-      - contour → order=0 (nearest) to preserve binary edges
+      - contour → order=1 (bilinear) to preserve continuous values
     """
 
     def __init__(self, config):
@@ -55,7 +55,7 @@ class TrainTransform:
             # In-plane rotation (axes 1,2 = H,W): same angle for every Z slice
             angle = np.random.uniform(-self.degrees, self.degrees)
             image = _nd_rotate(image, angle, axes=(1, 2), reshape=False, order=1, cval=0.0)
-            contour = _nd_rotate(contour, angle, axes=(1, 2), reshape=False, order=0, cval=0.0)
+            contour = _nd_rotate(contour, angle, axes=(1, 2), reshape=False, order=1, cval=0.0)
 
             # Isotropic zoom in H,W; crop/pad back to img_size
             scale = np.random.uniform(self.scale[0], self.scale[1])
@@ -65,7 +65,7 @@ class TrainTransform:
                     self.img_size, self.img_size,
                 )
                 contour = _center_crop_or_pad(
-                    _nd_zoom(contour, (1.0, scale, scale), order=0),
+                    _nd_zoom(contour, (1.0, scale, scale), order=1),
                     self.img_size, self.img_size,
                 )
 
@@ -74,7 +74,7 @@ class TrainTransform:
             dx = int(np.random.uniform(-self.translate[1], self.translate[1]) * self.img_size)
             if dy != 0 or dx != 0:
                 image = _nd_shift(image, (0, dy, dx), order=1, cval=0.0)
-                contour = _nd_shift(contour, (0, dy, dx), order=0, cval=0.0)
+                contour = _nd_shift(contour, (0, dy, dx), order=1, cval=0.0)
 
         return image.copy(), contour.copy()
 

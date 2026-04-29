@@ -503,22 +503,21 @@ class TestMatIRMDataset:
         print("   ✓ PASS — images dans [-1, 1]")
 
     @needs_pair
-    def test_contour_binary(self, dataset):
-        print("\n   OBJECTIF : vérifier que les contours ne contiennent que 0.0 et 1.0")
-        print("   POURQUOI : l'interpolation bilinéaire lors du resize ou de la rotation")
-        print("              peut créer des valeurs intermédiaires (ex. 0.3, 0.7).")
-        print("              Le seuillage à 0.5 dans __getitem__ doit les éliminer.")
-        print("              Une valeur intermédiaire signifie que le seuillage ne s'applique pas")
+    def test_contour_range(self, dataset):
+        print("\n   OBJECTIF : vérifier que les contours sont normalisés dans [-1, 1]")
+        print("   POURQUOI : les contours continus [0,1] sont normalisés vers [-1,1]")
+        print("              pour correspondre à l'échelle de l'image dans le canal UNet.")
         _sep()
-        bad = []
+        vmin, vmax = float("inf"), float("-inf")
         for idx in range(min(20, len(dataset))):
             cont = dataset[idx]["contours"]
-            unique = set(cont.unique().tolist())
-            if not unique.issubset({0.0, 1.0}):
-                bad.append((idx, unique))
-        print(f"   Coupes avec valeurs non binaires : {len(bad)}/20")
-        assert not bad, f"Contours non binaires sur coupes : {bad}"
-        print("   ✓ PASS — contours binaires sur 20 coupes")
+            vmin = min(vmin, cont.min().item())
+            vmax = max(vmax, cont.max().item())
+        print(f"   Range sur 20 coupes : [{vmin:.5f},  {vmax:.5f}]")
+        print(f"   Bornes autorisées   : [-1.00000,  +1.00000]")
+        assert vmin >= -1.0 - 1e-5
+        assert vmax <=  1.0 + 1e-5
+        print("   ✓ PASS — contours dans [-1, 1]")
 
     @needs_pair
     def test_near_images_zero_when_disabled(self, dataset):
@@ -593,12 +592,12 @@ class TestMatIRMDataset:
         print("\n   OBJECTIF [VISUEL] : afficher image + contour + near_image pour 3 coupes")
         print("   CE QU'ON ATTEND :")
         print("     col 1 (Image)   : coupe en niveaux de gris, valeurs dans [-1,1]")
-        print("     col 2 (Contour) : masque binaire blanc/noir aligné sur l'image")
+        print("     col 2 (Contour) : carte continue [-1,1] alignée sur l'image")
         print("     col 3 (Near)    : tenseur nul (noir) car near_guided=False")
         _sep()
         indices = [0, len(dataset) // 2, len(dataset) - 1]
         fig, axes = plt.subplots(3, 3, figsize=(12, 10))
-        col_labels = ["Image  ∈ [-1, 1]", "Contour  ∈ {0, 1}", "Near image (0 si désactivé)"]
+        col_labels = ["Image  ∈ [-1, 1]", "Contour  ∈ [-1, 1]", "Near image (0 si désactivé)"]
         row_labels  = [f"Coupe {i}" for i in indices]
         for row, idx in enumerate(indices):
             s = dataset[idx]
@@ -608,7 +607,7 @@ class TestMatIRMDataset:
                 axes[row, col].set_title(f"{clabel}\n{row_labels[row]}")
                 axes[row, col].axis("off")
         fig.suptitle("Sorties MatIRMDataset\n"
-                     "Vérifiez : image et contour alignés • near_image = noir (near_guided=False)",
+                     "Vérifiez : image et contour alignés • contour continu [-1,1] • near_image = noir (near_guided=False)",
                      fontsize=11)
         _save(fig, "06_dataset_samples.png")
         print("   ✓ PASS — vérifiez l'alignement image↔contour dans le PNG")

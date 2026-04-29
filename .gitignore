@@ -4,3 +4,4 @@ __pycache__/*
 data_test/
 runs/*
 .DS_Store
+split.json

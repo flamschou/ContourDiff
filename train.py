@@ -1,4 +1,5 @@
 import os
+import json
 import torch
 import argparse
 from pathlib import Path
@@ -30,7 +31,56 @@ def find_mat_pairs(directory):
     return pairs
 
 
+def load_split_json(json_path, split, data_root=None):
+    """Load (zscore_path, contours_path) pairs from a split.json for a given split.
+
+    split.json format:
+        {"train": [{"zscore": "...", "contours": "..."}, ...], "val": [...], "test": [...]}
+
+    data_root: replace the common server prefix in all paths.
+        Example: JSON paths start with /home/flamant/reseau_flamant/preprocessing_data/
+        and data is now at /mnt/data/ → pass data_root=/mnt/data/
+        The common prefix is auto-detected from the JSON.
+    """
+    with open(json_path) as f:
+        data = json.load(f)
+    if split not in data:
+        raise KeyError(f"Split '{split}' not found in {json_path}. Available: {list(data.keys())}")
+
+    original_root = None
+    if data_root is not None:
+        all_paths = [e[k] for s in data.values() for e in s for k in ("zscore", "contours")]
+        original_root = _common_path_prefix(all_paths)
+
+    pairs = []
+    for entry in data[split]:
+        zscore   = entry["zscore"]
+        contours = entry["contours"]
+        if original_root is not None:
+            zscore   = str(Path(data_root) / Path(zscore).relative_to(original_root))
+            contours = str(Path(data_root) / Path(contours).relative_to(original_root))
+        pairs.append((zscore, contours))
+    return pairs
+
+
+def _common_path_prefix(paths):
+    """Return the longest common path prefix across a list of absolute paths."""
+    if not paths:
+        return ""
+    parts_list = [Path(p).parts for p in paths]
+    common = []
+    for components in zip(*parts_list):
+        if len(set(components)) == 1:
+            common.append(components[0])
+        else:
+            break
+    return str(Path(*common)) if common else ""
+
+
 def main(args):
+    if not args.split_json and not args.mat_directory:
+        raise ValueError("Provide --split_json or --mat_directory")
+
     config = TrainingConfig(
         model_type=args.model_type,
         dataset=args.dataset,
@@ -73,19 +123,26 @@ def main(args):
     logger.info("Output : {}", config.output_dir)
 
     # ── Discover .mat pairs ────────────────────────────────────────────────
-    all_pairs = find_mat_pairs(args.mat_directory)
-    if not all_pairs:
-        raise RuntimeError(f"No pairs found under {args.mat_directory}")
-
-    if args.val_mat_directory:
-        train_pairs = all_pairs
-        val_pairs = find_mat_pairs(args.val_mat_directory)
+    if args.split_json:
+        train_pairs = load_split_json(args.split_json, "train", data_root=args.data_root)
+        val_pairs   = load_split_json(args.split_json, "val",   data_root=args.data_root)
+        if not train_pairs:
+            raise RuntimeError(f"No train pairs in {args.split_json}")
         if not val_pairs:
-            raise RuntimeError(f"No pairs found under {args.val_mat_directory}")
+            raise RuntimeError(f"No val pairs in {args.split_json}")
     else:
-        n_val = max(1, round(len(all_pairs) * args.val_ratio)) if args.val_ratio > 0 else 0
-        val_pairs  = all_pairs[-n_val:] if n_val else all_pairs
-        train_pairs = all_pairs[:-n_val] if n_val else all_pairs
+        all_pairs = find_mat_pairs(args.mat_directory)
+        if not all_pairs:
+            raise RuntimeError(f"No pairs found under {args.mat_directory}")
+        if args.val_mat_directory:
+            train_pairs = all_pairs
+            val_pairs = find_mat_pairs(args.val_mat_directory)
+            if not val_pairs:
+                raise RuntimeError(f"No pairs found under {args.val_mat_directory}")
+        else:
+            n_val = max(1, round(len(all_pairs) * args.val_ratio)) if args.val_ratio > 0 else 0
+            val_pairs   = all_pairs[-n_val:] if n_val else all_pairs
+            train_pairs = all_pairs[:-n_val] if n_val else all_pairs
 
     logger.info("Volumes  — train: {}  val: {}", len(train_pairs), len(val_pairs))
 
@@ -296,12 +353,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # ── Data ──────────────────────────────────────────────────────────────
-    parser.add_argument('--mat_directory', type=str, required=True,
-                        help="directory containing zscore_*.mat + contours_zscore_*.mat")
+    parser.add_argument('--split_json', type=str, default=None,
+                        help="path to split.json with train/val/test keys")
+    parser.add_argument('--data_root', type=str, default=None,
+                        help="replace path prefix in split.json (e.g. /data/ when JSON has /home/flamant/...)")
+    parser.add_argument('--mat_directory', type=str, default=None,
+                        help="directory scan fallback (used if --split_json is not provided)")
     parser.add_argument('--val_mat_directory', type=str, default=None,
-                        help="separate val directory (omit to split from mat_directory)")
+                        help="separate val directory (used with --mat_directory)")
     parser.add_argument('--val_ratio', type=float, default=0.2,
-                        help="fraction of volumes for val (0.0 = same volumes as train)")
+                        help="fraction of volumes for val (used with --mat_directory)")
 
     # ── Domain labels ──────────────────────────────────────────────────────
     parser.add_argument('--input_domain', type=str, default="IRM")

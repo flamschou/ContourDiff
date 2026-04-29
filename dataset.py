@@ -75,7 +75,7 @@ class MatIRMDataset(Dataset):
                                     float(np.percentile(vol, 99))))
             # One-time resize to target spatial resolution
             self.volumes.append(_resize_hw(vol, img_size, img_size, order=1))
-            self.contours_data.append(_resize_hw(cont, img_size, img_size, order=0))
+            self.contours_data.append(_resize_hw(cont, img_size, img_size, order=1))
             for z in range(vol.shape[0]):
                 self.samples.append((vol_idx, z))
 
@@ -115,11 +115,10 @@ class MatIRMDataset(Dataset):
             img = (img - p1) / (p99 - p1) * 2.0 - 1.0
         img_tensor = torch.tensor(img.copy(), dtype=torch.float32).unsqueeze(0)
 
-        # Contour slice → binary float32 tensor (1, H, W) in {0, 1}
+        # Contour slice → float32 tensor (1, H, W) in [-1, 1]
         cont_raw = self.aug_contours[vol_idx][z_idx]
-        cont_tensor = torch.tensor(
-            (cont_raw > 0.5).astype(np.float32)
-        ).unsqueeze(0)
+        cont = cont_raw * 2.0 - 1.0
+        cont_tensor = torch.tensor(cont.copy(), dtype=torch.float32).unsqueeze(0)
 
         near_tensor = self._near_tensor(vol_idx, z_idx, p1, p99)
 

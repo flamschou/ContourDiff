@@ -1,6 +1,8 @@
 import random
 import torch
 import numpy as np
+from pathlib import Path
+from tqdm import tqdm
 from torch.utils.data import Dataset
 
 
@@ -64,7 +66,10 @@ class MatIRMDataset(Dataset):
         self.contours_data = []
         self.samples = []       # (vol_idx, z_idx)
 
-        for vol_idx, (vol_path, cont_path) in enumerate(mat_pairs):
+        split_label = "train" if train else "val"
+        pbar = tqdm(mat_pairs, desc=f"Chargement {split_label}", unit="vol", dynamic_ncols=True)
+        for vol_idx, (vol_path, cont_path) in enumerate(pbar):
+            pbar.set_postfix({"fichier": Path(vol_path).stem[-30:]})
             vol = _load_mat(vol_path)
             cont = _load_mat(cont_path)
             assert vol.shape == cont.shape, (

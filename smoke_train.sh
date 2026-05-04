@@ -38,10 +38,10 @@ python train.py \
     --save_image_epochs 1            \
     --save_model_epochs 1            \
     --contour_guided                 \
-    --contour_channel_mode single    \
+    --near_guided                    \
+    --contour_channel_mode multi     \
     --workers        0               \
-    --seed           42              \
-    --overwrite
+    --seed           42
 
 echo ""
 echo "Smoke test terminé. Sorties dans : $OUTPUT_DIR"

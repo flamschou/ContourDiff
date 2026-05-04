@@ -34,10 +34,10 @@ class TrainingConfig:
     apply_p: float = 0.9             # probability to apply affine augmentation
 
     # Guidance
-    contour_guided: bool = False
-    contour_channel_mode: str = "single"
+    contour_guided: bool = True
+    contour_channel_mode: str = "multi"
     conditional: bool = False
-    near_guided: bool = False
+    near_guided: bool = True
     near_guided_ratio: float = 0.2
 
 

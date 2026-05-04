@@ -168,7 +168,7 @@ def evaluate(config, epoch, pipeline, noise_step=1000, conditional=False, contou
         images = pipeline(
             batch_size = config.eval_batch_size,
             num_inference_steps=noise_step,
-            generator=torch.manual_seed(config.seed),
+            generator=torch.Generator().manual_seed(config.seed),
             data_batch=data_batch,
             contour_batch=data_batch
         ).images
@@ -186,14 +186,14 @@ def evaluate(config, epoch, pipeline, noise_step=1000, conditional=False, contou
     if conditional:
         # Save the conditioned images
         img_ori = data_batch["images"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols)
-    
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols, padding=0)
+
     if contour:
         img_ori = data_batch["images"]
         contour_ori = data_batch["contours"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols)
-        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=cols)
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols, padding=0)
+        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=cols, padding=0)
 
         if config.near_guided:
             near_img_ori = data_batch["near_images"]
-            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=cols)
+            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=cols, padding=0)

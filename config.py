@@ -10,12 +10,12 @@ class TrainingConfig:
     output_domain: str = None
     img_size: int = 256
     in_channels: int = 1
-    train_batch_size: int = 4
-    eval_batch_size: int = 16
+    train_batch_size: int = 64
+    eval_batch_size: int = 64
     num_epochs: int = 600
     gradient_accumulation_steps: int = 1
     noise_step: int = 1000
-    learning_rate: float = 1e-4
+    learning_rate: float = 3e-4
     lr_warmup_steps: int = 500
     save_image_epochs: int = 20
     save_model_epochs: int = 20
@@ -38,7 +38,7 @@ class TrainingConfig:
     contour_channel_mode: str = "multi"
     conditional: bool = False
     near_guided: bool = True
-    near_guided_ratio: float = 0.2
+    near_guided_ratio: float = 0.6
 
 
 @dataclass

@@ -1,8 +1,12 @@
+import os
+import time
 import random
 import torch
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+from loguru import logger
 from torch.utils.data import Dataset
 
 
@@ -93,16 +97,24 @@ class MatIRMDataset(Dataset):
     def resample(self):
         """Re-draw 3D augmentations. Call once per training epoch."""
         transform = self.train_transform if self.train else self.val_transform
-        aug_vols, aug_conts = [], []
-        for vol, cont in zip(self.volumes, self.contours_data):
-            if transform is not None:
-                vol_aug, cont_aug = transform(vol, cont)
-            else:
-                vol_aug, cont_aug = vol, cont
-            aug_vols.append(vol_aug)
-            aug_conts.append(cont_aug)
-        self.aug_volumes = aug_vols
-        self.aug_contours = aug_conts
+
+        if transform is None:
+            self.aug_volumes = list(self.volumes)
+            self.aug_contours = list(self.contours_data)
+            return
+
+        def _augment(args):
+            vol, cont = args
+            return transform(vol, cont)
+
+        n_workers = min(os.cpu_count() or 1, len(self.volumes))
+        t0 = time.time()
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            results = list(executor.map(_augment, zip(self.volumes, self.contours_data)))
+        logger.info("resample() — {} volumes augmentés en {:.1f}s ({} threads)", len(self.volumes), time.time() - t0, n_workers)
+
+        self.aug_volumes = [r[0] for r in results]
+        self.aug_contours = [r[1] for r in results]
 
     # ── dataset interface ─────────────────────────────────────────────────────
 

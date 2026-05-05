@@ -1,14 +1,12 @@
 import os
-import torch
 import cv2
-import random
 import argparse
 
 import pandas as pd
 import numpy as np
-from skimage import io, filters, color, morphology
-from scipy import ndimage
+from skimage import filters, morphology
 from PIL import Image
+from loguru import logger
 from utils import normalize_percentile_to_255
 
 def img_remove_artifact(img, min_size, area_threshold):
@@ -37,31 +35,28 @@ def main(args):
     contour_folder = os.path.join(args.data_directory, args.domain_contour_folder)
     os.makedirs(contour_folder, exist_ok=True)
 
+    files = os.listdir(image_folder)
+    logger.info("Prétraitement — {} images dans {}", len(files), image_folder)
+
     img_name_list = []
     contour_name_list = []
-    
-    for f in os.listdir(image_folder):
+
+    for f in files:
         img = Image.open(os.path.join(image_folder, f)).convert("L")
         np_img = np.array(img)
 
         if args.remove_artifact:
-            np_img, keep_mask = img_remove_artifact(np_img, args.min_size, args.area_threshold)
+            np_img, _ = img_remove_artifact(np_img, args.min_size, args.area_threshold)
 
         np_contour = canny_edge_detector(np_img, args.low_threshold, args.high_threshold, args.kernel_size)
-
-        contour = Image.fromarray(np_contour)
-
-        contour.save(os.path.join(contour_folder, f))
+        Image.fromarray(np_contour).save(os.path.join(contour_folder, f))
 
         img_name_list.append(f)
         contour_name_list.append(f)
 
-    df_meta = pd.DataFrame({
-        "image_name": img_name_list,
-        "contour_name": contour_name_list
-    })
-
-    df_meta.to_csv(os.path.join(args.data_directory, args.domain_meta_path))    
+    meta_path = os.path.join(args.data_directory, args.domain_meta_path)
+    pd.DataFrame({"image_name": img_name_list, "contour_name": contour_name_list}).to_csv(meta_path)
+    logger.info("Contours sauvegardés → {}  |  meta → {}", contour_folder, meta_path)
 
 if __name__ == "__main__":
     # Parse args:

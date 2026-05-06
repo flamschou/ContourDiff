@@ -1,48 +1,11 @@
 import os
-import torch
 import math
-from PIL import Image
-import torchvision.transforms.functional as TF
+import torch
 import numpy as np
+from PIL import Image
+from loguru import logger
 from torchvision.utils import save_image
 
-class NonUniformScaling:
-    """
-    Apply non-uniform scaling on either direction (vertical or horizontal).
-
-    Parameters:
-    scale_x_range (tuple): Range of horizontal scaling.
-    scale_y_range (tuple): Range of vertical scaling.
-
-    Returns:
-    torch.Tensor: PIL image after scaling.
-    """
-    def __init__(self, scale_x_range, scale_y_range):
-        self.scale_x_range = scale_x_range
-        self.scale_y_range = scale_y_range
-
-    def __call__(self, img):
-        # Generate random scaling factors using PyTorch
-        scale_x = (self.scale_x_range[1] - self.scale_x_range[0]) * torch.rand(1).item() + self.scale_x_range[0]
-        scale_y = (self.scale_y_range[1] - self.scale_y_range[0]) * torch.rand(1).item() + self.scale_y_range[0]
-
-        # Convert PIL image to tensor
-        img_tensor = TF.to_tensor(img).unsqueeze(0)  # Add batch dimension
-
-        # Create the 2D affine transformation matrix for scaling
-        theta = torch.tensor([
-            [scale_x, 0, 0],
-            [0, scale_y, 0]
-        ], dtype=torch.float).unsqueeze(0)  # Add batch dimension
-
-        # Create the affine grid
-        grid = torch.nn.functional.affine_grid(theta, img_tensor.size(), align_corners=True)
-
-        # Apply the affine transformation
-        stretched_img_tensor = torch.nn.functional.grid_sample(img_tensor, grid, align_corners=True)
-
-        # Convert back to PIL image for visualization
-        return TF.to_pil_image(stretched_img_tensor.squeeze(0))
 
 def add_contours_to_noise(noisy_images, data_batch, config, device, num_copy=1, translation=False):
     """
@@ -163,37 +126,43 @@ def evaluate(config, epoch, pipeline, noise_step=1000, conditional=False, contou
     # possibly mask guided and/or class conditioned.
     # The default pipeline output type is `List[PIL.Image]`
     
-    if contour:
-        assert data_batch is not None
-        images = pipeline(
-            batch_size = config.eval_batch_size,
-            num_inference_steps=noise_step,
-            generator=torch.manual_seed(config.seed),
-            data_batch=data_batch,
-            contour_batch=data_batch
-        ).images
-    
-    # Make a grid out of the images
-    cols = 4
-    rows = math.ceil(len(images) / cols)
-    image_grid = make_grid(images, rows=rows, cols=cols)
-    
-    # Save the generated images
+    _NUM_NOISES = 4
+    _SAMPLES = 4
+
     test_dir = os.path.join(config.output_dir, "samples")
     os.makedirs(test_dir, exist_ok=True)
-    image_grid.save(f"{test_dir}/{epoch:04d}.png")
-    
-    if conditional:
-        # Save the conditioned images
-        img_ori = data_batch["images"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols)
-    
+
     if contour:
-        img_ori = data_batch["images"]
-        contour_ori = data_batch["contours"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols)
-        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=cols)
+        assert data_batch is not None
+        actual_samples = min(_SAMPLES, next(iter(data_batch.values())).shape[0])
+        mini_batch = {k: v[:actual_samples] for k, v in data_batch.items()}
+
+        images = []
+        for i in range(_NUM_NOISES):
+            imgs = pipeline(
+                batch_size=actual_samples,
+                num_inference_steps=noise_step,
+                generator=torch.Generator().manual_seed(config.seed + i),
+                data_batch=mini_batch,
+                contour_batch=mini_batch,
+            ).images
+            images.extend(imgs)
+
+        image_grid = make_grid(images, rows=_NUM_NOISES, cols=actual_samples)
+        grid_path = f"{test_dir}/{epoch:04d}.png"
+        image_grid.save(grid_path)
+        logger.info("Images de validation sauvegardées → {}", grid_path)
+
+    if conditional:
+        img_ori = mini_batch["images"]
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=actual_samples, padding=0)
+
+    if contour:
+        img_ori = mini_batch["images"]
+        contour_ori = mini_batch["contours"]
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=actual_samples, padding=0)
+        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=actual_samples, padding=0)
 
         if config.near_guided:
-            near_img_ori = data_batch["near_images"]
-            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=cols)
+            near_img_ori = mini_batch["near_images"]
+            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=actual_samples, padding=0)

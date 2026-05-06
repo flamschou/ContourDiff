@@ -141,7 +141,7 @@ def main(args):
                 raise RuntimeError(f"No pairs found under {args.val_mat_directory}")
         else:
             n_val = max(1, round(len(all_pairs) * args.val_ratio)) if args.val_ratio > 0 else 0
-            val_pairs   = all_pairs[-n_val:] if n_val else all_pairs
+            val_pairs   = all_pairs[-n_val:] if n_val else []
             train_pairs = all_pairs[:-n_val] if n_val else all_pairs
 
     logger.info("Volumes  — train: {}  val: {}", len(train_pairs), len(val_pairs))
@@ -194,6 +194,10 @@ def main(args):
         "Modèle UNet2D — in_channels: {}  out_channels: {}  img_size: {}",
         model_in_channels, config.in_channels, config.img_size,
     )
+    logger.info(
+        "Guidage — contour_guided: {}  contour_channel_mode: {}  near_guided: {}  near_guided_ratio: {}",
+        config.contour_guided, config.contour_channel_mode, config.near_guided, config.near_guided_ratio,
+    )
     model = UNet2DModel(
         sample_size=config.img_size,
         in_channels=model_in_channels,
@@ -209,7 +213,10 @@ def main(args):
             "UpBlock2D", "UpBlock2D", "UpBlock2D",
         ),
     )
-    model = nn.DataParallel(model)
+    n_gpus = torch.cuda.device_count()
+    logger.info("GPU(s) disponibles : {}", n_gpus if n_gpus > 0 else "CPU")
+    if n_gpus > 1:
+        model = nn.DataParallel(model)
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
@@ -314,17 +321,16 @@ def main(args):
             epoch + 1, config.num_epochs, epoch_avg, val_avg,
         )
         epoch_bar.set_postfix(train=f"{epoch_avg:.5f}", val=f"{val_avg:.5f}", lr=f"{current_lr:.2e}")
-        monitor.end_epoch(epoch + 1, val_avg=val_avg)
-
         # ── Image generation & checkpointing ──────────────────────────────
+        unet = model.module if isinstance(model, nn.DataParallel) else model
         if config.model_type == "ddpm":
             pipeline = ContourDiffDDPMPipeline(
-                unet=model.module, scheduler=noise_scheduler,
+                unet=unet, scheduler=noise_scheduler,
                 data_loader=val_dataloader, external_config=config,
             )
         else:
             pipeline = ContourDiffDDIMPipeline(
-                unet=model.module, scheduler=noise_scheduler,
+                unet=unet, scheduler=noise_scheduler,
                 data_loader=val_dataloader, external_config=config,
             )
 
@@ -335,6 +341,15 @@ def main(args):
             data_batch = next(iter(val_dataloader))
             evaluate(config, epoch + 1, pipeline, noise_step=config.noise_step,
                      contour=True, data_batch=data_batch)
+            sample_path = os.path.join(config.output_dir, "samples", f"{epoch + 1:04d}.png")
+            if os.path.exists(sample_path):
+                monitor.update_sample(sample_path, epoch + 1)
+                ref_dir = os.path.join(config.output_dir, "samples")
+                monitor.update_references({
+                    "ori":     os.path.join(ref_dir, f"{epoch + 1:04d}_ori.png"),
+                    "contour": os.path.join(ref_dir, f"{epoch + 1:04d}_contour.png"),
+                    "near":    os.path.join(ref_dir, f"{epoch + 1:04d}_near_ori.png"),
+                })
 
         save_model = (epoch == 0) or (epoch + 1) % config.save_model_epochs == 0 \
                      or epoch == config.num_epochs - 1
@@ -344,7 +359,7 @@ def main(args):
             pipeline.save_pretrained(save_path)
             logger.info("Modèle sauvegardé → {}", save_path)
 
-        monitor.end_epoch(epoch + 1)
+        monitor.end_epoch(epoch + 1, val_avg=val_avg)
 
     logger.success("Entraînement terminé — {} epochs, {} steps", config.num_epochs, global_step)
 
@@ -376,7 +391,7 @@ if __name__ == "__main__":
     parser.add_argument('--eval_batch_size', type=int, default=16)
     parser.add_argument('--num_epochs', type=int, default=400)
     parser.add_argument('--noise_step', type=int, default=1000)
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=3e-4)
     parser.add_argument('--lr_warmup_steps', type=int, default=500)
     parser.add_argument('--save_image_epochs', type=int, default=20)
     parser.add_argument('--save_model_epochs', type=int, default=20)
@@ -392,7 +407,7 @@ if __name__ == "__main__":
     parser.add_argument('--contour_channel_mode', type=str, default="single")
     parser.add_argument('--conditional', action='store_true')
     parser.add_argument('--near_guided', action='store_true')
-    parser.add_argument('--near_guided_ratio', type=float, default=0.2)
+    parser.add_argument('--near_guided_ratio', type=float, default=0.6)
 
     args = parser.parse_args()
     main(args)

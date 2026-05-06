@@ -109,6 +109,23 @@ DATA_DIRECTORY
 To visualize the extracted contours, run `contour_checker.ipynb`.
 
 ## 2) Training Phase
+
+### Monitoring (sur VM)
+Le monitoring génère un fichier `runs/<run>/monitor.html` mis à jour en temps réel. Pour y accéder depuis ta machine locale quand l'entraînement tourne sur une VM :
+
+**Sur la VM :**
+```bash
+python -m http.server 8080 --directory runs/
+```
+
+**Sur ta machine locale :**
+```bash
+ssh -L 8080:localhost:8080 user@vm
+```
+
+Puis ouvre `http://localhost:8080/<run>/monitor.html` dans ton navigateur.
+
+### Lancer l'entraînement
 To train your own ContourDiff model, run command:
 ```bash
 CUDA_VISIBLE_DEVICES=0,1,2 python3 train.py \

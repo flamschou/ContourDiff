@@ -4,6 +4,7 @@ Données 100 % inline — aucun chargement externe, compatible file://.
 Auto-refresh toutes les 8 secondes.
 """
 
+import base64
 import json
 import os
 import time
@@ -13,7 +14,6 @@ _RUN_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="8">
   <title>ContourDiff — __RUN_LABEL__</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,6 +33,40 @@ _RUN_TEMPLATE = r"""<!DOCTYPE html>
              border-radius: 10px; margin-bottom: 16px; }
     .chart-title { font-size: 12px; color: #6c7086; margin-bottom: 6px; letter-spacing: 1px; }
     .refresh-note { font-size: 11px; color: #45475a; margin-top: 16px; }
+    .sample-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .sample-nav button {
+      background: #1e1e2e; border: 1px solid #313244; color: #cdd6f4;
+      border-radius: 6px; padding: 4px 14px; font-family: 'Courier New', monospace;
+      font-size: 16px; cursor: pointer;
+    }
+    .sample-nav button:hover { background: #313244; }
+    .sample-nav button:disabled { opacity: 0.3; cursor: default; }
+    .sample-nav input[type=range] { flex: 1; accent-color: #89b4fa; }
+    .sample-nav .epoch-label { font-size: 13px; color: #89b4fa; min-width: 120px; text-align: right; }
+    .img-clickable { cursor: zoom-in; transition: opacity 0.15s; }
+    .img-clickable:hover { opacity: 0.85; }
+    .ref-thumb { border-radius: 6px; border: 1px solid #313244; width: 420px; height: 420px;
+                 object-fit: contain; background: #1e1e2e; }
+    /* lightbox */
+    #lb { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+          z-index: 9999; align-items: center; justify-content: center; }
+    #lb.open { display: flex; }
+    #lb-img { width: 80vmin; height: 80vmin; object-fit: contain;
+              border-radius: 10px; box-shadow: 0 0 60px rgba(0,0,0,0.8);
+              image-rendering: pixelated; }
+    #lb-close { position: fixed; top: 18px; right: 24px; font-size: 28px; color: #cdd6f4;
+                cursor: pointer; background: none; border: none; line-height: 1; }
+    #lb-close:hover { color: #f38ba8; }
+    #lb-label { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                font-size: 12px; color: #6c7086; font-family: 'Courier New', monospace;
+                letter-spacing: 1px; }
+    #lb-prev, #lb-next { position: fixed; top: 50%; transform: translateY(-50%);
+                          font-size: 28px; color: #cdd6f4; background: rgba(30,30,46,0.7);
+                          border: 1px solid #313244; border-radius: 8px; padding: 8px 14px;
+                          cursor: pointer; }
+    #lb-prev { left: 16px; } #lb-next { right: 16px; }
+    #lb-prev:hover, #lb-next:hover { background: #313244; }
+    #lb-prev:disabled, #lb-next:disabled { opacity: 0.2; cursor: default; }
   </style>
 </head>
 <body>
@@ -77,6 +111,46 @@ _RUN_TEMPLATE = r"""<!DOCTYPE html>
 
   <p class="chart-title">LEARNING RATE</p>
   <canvas id="c-lr" width="960" height="160"></canvas>
+
+  <div id="sample-section" style="display:none; margin-top:24px;">
+    <p class="chart-title">ÉCHANTILLONS GÉNÉRÉS &nbsp;(4 bruits × 4 patients)</p>
+    <div class="sample-nav">
+      <button id="btn-prev" onclick="sampleNav(-1)">&#9664;</button>
+      <input type="range" id="sample-slider" min="0" max="0" value="0" oninput="sampleSlide(this.value)">
+      <button id="btn-next" onclick="sampleNav(1)">&#9654;</button>
+      <span class="epoch-label" id="sample-epoch-label">—</span>
+    </div>
+    <img id="sample-img" class="img-clickable" onclick="lbOpenSample(sampleIdx)"
+         style="width:100%; max-width:800px; height:500px; object-fit:contain; image-rendering:pixelated;
+                border-radius:10px; border:1px solid #313244; background:#1e1e2e; display:block; margin-bottom:16px;" />
+
+    <div id="ref-section" style="display:none;">
+      <p class="chart-title" style="margin-top:8px;">RÉFÉRENCES (fixes)</p>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
+        <div id="ref-ori-wrap"     style="display:none;">
+          <p class="chart-title">ORI</p>
+          <img id="ref-ori" class="img-clickable ref-thumb" onclick="lbOpenRef('ori')" />
+        </div>
+        <div id="ref-contour-wrap" style="display:none;">
+          <p class="chart-title">CONTOUR</p>
+          <img id="ref-contour" class="img-clickable ref-thumb" onclick="lbOpenRef('contour')" />
+        </div>
+        <div id="ref-near-wrap"    style="display:none;">
+          <p class="chart-title">NEAR</p>
+          <img id="ref-near" class="img-clickable ref-thumb" onclick="lbOpenRef('near')" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- lightbox -->
+  <div id="lb" onclick="lbClose()">
+    <button id="lb-close" onclick="lbClose()">&#x2715;</button>
+    <button id="lb-prev"  onclick="event.stopPropagation(); lbNav(-1)">&#9664;</button>
+    <img id="lb-img" onclick="event.stopPropagation()" />
+    <button id="lb-next"  onclick="event.stopPropagation(); lbNav(1)">&#9654;</button>
+    <span id="lb-label"></span>
+  </div>
 
   <p class="refresh-note">&#x21BB; rafraîchissement auto toutes les 8 s — dernière mise à jour : <span id="updated"></span></p>
 
@@ -169,6 +243,105 @@ _RUN_TEMPLATE = r"""<!DOCTYPE html>
     epochSeries.push({label: 'val', y: D.val_avg, dots: true, width: 2});
   chart('c-epoch', epochSeries, {});
   chart('c-lr',    [{label: 'learning rate', y: D.lr, width: 1.5}], {yMin: 0});
+
+  var samples = D.samples || [];
+  var sampleIdx = samples.length - 1;
+
+  function showSample(idx) {
+    idx = Math.max(0, Math.min(samples.length - 1, idx));
+    sampleIdx = idx;
+    var slider = document.getElementById('sample-slider');
+    slider.value = idx;
+    document.getElementById('btn-prev').disabled = (idx === 0);
+    document.getElementById('btn-next').disabled = (idx === samples.length - 1);
+    document.getElementById('sample-epoch-label').textContent =
+        'EPOCH ' + samples[idx].epoch + ' / ' + (cfg.num_epochs || '?');
+    document.getElementById('sample-img').src =
+        'data:image/png;base64,' + samples[idx].b64;
+  }
+
+  function sampleNav(dir) { showSample(sampleIdx + dir); }
+  function sampleSlide(v) { showSample(parseInt(v)); }
+
+  if (samples.length) {
+    var section = document.getElementById('sample-section');
+    var slider  = document.getElementById('sample-slider');
+    section.style.display = 'block';
+    slider.max = samples.length - 1;
+    showSample(samples.length - 1);
+  }
+
+  var refs = D.ref_images || {};
+  if (refs.ori || refs.contour || refs.near) {
+    document.getElementById('ref-section').style.display = 'block';
+    if (refs.ori) {
+      document.getElementById('ref-ori-wrap').style.display = 'block';
+      document.getElementById('ref-ori').src = 'data:image/png;base64,' + refs.ori;
+    }
+    if (refs.contour) {
+      document.getElementById('ref-contour-wrap').style.display = 'block';
+      document.getElementById('ref-contour').src = 'data:image/png;base64,' + refs.contour;
+    }
+    if (refs.near) {
+      document.getElementById('ref-near-wrap').style.display = 'block';
+      document.getElementById('ref-near').src = 'data:image/png;base64,' + refs.near;
+    }
+  }
+
+  // ── lightbox ──────────────────────────────────────────────────────────────
+  var lbMode = null; // 'sample' | 'ref'
+  var lbRefKey = null;
+
+  function lbOpen(src, label, hasPrev, hasNext) {
+    document.getElementById('lb-img').src = src;
+    document.getElementById('lb-label').textContent = label;
+    document.getElementById('lb-prev').disabled = !hasPrev;
+    document.getElementById('lb-next').disabled = !hasNext;
+    document.getElementById('lb').classList.add('open');
+  }
+
+  function lbClose() {
+    document.getElementById('lb').classList.remove('open');
+    lbMode = null;
+  }
+
+  function lbOpenSample(idx) {
+    if (!samples.length) return;
+    lbMode = 'sample';
+    var s = samples[idx];
+    lbOpen('data:image/png;base64,' + s.b64,
+           'EPOCH ' + s.epoch + ' / ' + (cfg.num_epochs || '?'),
+           idx > 0, idx < samples.length - 1);
+  }
+
+  function lbOpenRef(key) {
+    lbMode = 'ref';
+    lbRefKey = key;
+    lbOpen('data:image/png;base64,' + refs[key], key.toUpperCase(), false, false);
+  }
+
+  function lbNav(dir) {
+    if (lbMode === 'sample') {
+      var next = Math.max(0, Math.min(samples.length - 1, sampleIdx + dir));
+      showSample(next);
+      lbOpenSample(next);
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    var lb = document.getElementById('lb');
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape')      lbClose();
+    if (e.key === 'ArrowLeft')   lbNav(-1);
+    if (e.key === 'ArrowRight')  lbNav(1);
+  });
+
+  // auto-refresh pausé quand la lightbox est ouverte
+  setInterval(function() {
+    if (!document.getElementById('lb').classList.contains('open')) {
+      location.reload();
+    }
+  }, 8000);
   </script>
 </body>
 </html>
@@ -194,6 +367,8 @@ class TrainingMonitor:
         self.lr          = []
         self._epoch_buf  = []
         self.epoch       = 0
+        self._samples    = []   # list of {epoch, b64}
+        self._ref_images = {}   # {ori, contour, near} — stored once
         self._start      = time.time()
 
         os.makedirs(output_dir, exist_ok=True)
@@ -203,6 +378,22 @@ class TrainingMonitor:
         self.step_losses.append(round(loss, 6))
         self.lr.append(round(lr, 8))
         self._epoch_buf.append(loss)
+        self._write_html()
+
+    def update_references(self, paths: dict):
+        """Store reference images once. paths = {ori, contour, near} (values are file paths, missing keys ignored)."""
+        if self._ref_images:
+            return  # already stored
+        for key, path in paths.items():
+            if path and os.path.exists(path):
+                with open(path, "rb") as f:
+                    self._ref_images[key] = base64.b64encode(f.read()).decode("ascii")
+        self._write_html()
+
+    def update_sample(self, img_path: str, epoch: int):
+        with open(img_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        self._samples.append({"epoch": epoch, "b64": b64})
         self._write_html()
 
     def end_epoch(self, epoch: int, val_avg: float = None):
@@ -221,15 +412,17 @@ class TrainingMonitor:
                if self.epoch > 0 else "—")
 
         data = {
-            "epoch":       self.epoch,
+            "epoch":      self.epoch,
             "step_losses": self.step_losses,
-            "epoch_avg":   self.epoch_avg,
-            "val_avg":     self.val_avg,
-            "lr":          self.lr,
-            "config":      self.config,
-            "elapsed":     str(timedelta(seconds=int(elapsed_s))),
-            "eta":         eta,
-            "updated_at":  datetime.now().strftime("%H:%M:%S"),
+            "epoch_avg":  self.epoch_avg,
+            "val_avg":    self.val_avg,
+            "lr":         self.lr,
+            "config":     self.config,
+            "elapsed":    str(timedelta(seconds=int(elapsed_s))),
+            "eta":        eta,
+            "updated_at": datetime.now().strftime("%H:%M:%S"),
+            "samples":    self._samples,
+            "ref_images": self._ref_images,
         }
 
         html = (_RUN_TEMPLATE

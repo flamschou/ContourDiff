@@ -126,36 +126,43 @@ def evaluate(config, epoch, pipeline, noise_step=1000, conditional=False, contou
     # possibly mask guided and/or class conditioned.
     # The default pipeline output type is `List[PIL.Image]`
     
-    if contour:
-        assert data_batch is not None
-        images = pipeline(
-            batch_size=config.eval_batch_size,
-            num_inference_steps=noise_step,
-            generator=torch.Generator().manual_seed(config.seed),
-            data_batch=data_batch,
-            contour_batch=data_batch
-        ).images
-
-    cols = 4
-    rows = math.ceil(len(images) / cols)
-    image_grid = make_grid(images, rows=rows, cols=cols)
+    _NUM_NOISES = 4
+    _SAMPLES = 4
 
     test_dir = os.path.join(config.output_dir, "samples")
     os.makedirs(test_dir, exist_ok=True)
-    grid_path = f"{test_dir}/{epoch:04d}.png"
-    image_grid.save(grid_path)
-    logger.info("Images de validation sauvegardées → {}", grid_path)
-
-    if conditional:
-        img_ori = data_batch["images"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols, padding=0)
 
     if contour:
-        img_ori = data_batch["images"]
-        contour_ori = data_batch["contours"]
-        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=cols, padding=0)
-        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=cols, padding=0)
+        assert data_batch is not None
+        actual_samples = min(_SAMPLES, next(iter(data_batch.values())).shape[0])
+        mini_batch = {k: v[:actual_samples] for k, v in data_batch.items()}
+
+        images = []
+        for i in range(_NUM_NOISES):
+            imgs = pipeline(
+                batch_size=actual_samples,
+                num_inference_steps=noise_step,
+                generator=torch.Generator().manual_seed(config.seed + i),
+                data_batch=mini_batch,
+                contour_batch=mini_batch,
+            ).images
+            images.extend(imgs)
+
+        image_grid = make_grid(images, rows=_NUM_NOISES, cols=actual_samples)
+        grid_path = f"{test_dir}/{epoch:04d}.png"
+        image_grid.save(grid_path)
+        logger.info("Images de validation sauvegardées → {}", grid_path)
+
+    if conditional:
+        img_ori = mini_batch["images"]
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=actual_samples, padding=0)
+
+    if contour:
+        img_ori = mini_batch["images"]
+        contour_ori = mini_batch["contours"]
+        save_image(img_ori, f"{test_dir}/{epoch:04d}_ori.png", normalize=True, nrow=actual_samples, padding=0)
+        save_image(contour_ori, f"{test_dir}/{epoch:04d}_contour.png", normalize=True, nrow=actual_samples, padding=0)
 
         if config.near_guided:
-            near_img_ori = data_batch["near_images"]
-            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=cols, padding=0)
+            near_img_ori = mini_batch["near_images"]
+            save_image(near_img_ori, f"{test_dir}/{epoch:04d}_near_ori.png", normalize=True, nrow=actual_samples, padding=0)

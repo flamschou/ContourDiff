@@ -341,6 +341,15 @@ def main(args):
             data_batch = next(iter(val_dataloader))
             evaluate(config, epoch + 1, pipeline, noise_step=config.noise_step,
                      contour=True, data_batch=data_batch)
+            sample_path = os.path.join(config.output_dir, "samples", f"{epoch + 1:04d}.png")
+            if os.path.exists(sample_path):
+                monitor.update_sample(sample_path, epoch + 1)
+                ref_dir = os.path.join(config.output_dir, "samples")
+                monitor.update_references({
+                    "ori":     os.path.join(ref_dir, f"{epoch + 1:04d}_ori.png"),
+                    "contour": os.path.join(ref_dir, f"{epoch + 1:04d}_contour.png"),
+                    "near":    os.path.join(ref_dir, f"{epoch + 1:04d}_near_ori.png"),
+                })
 
         save_model = (epoch == 0) or (epoch + 1) % config.save_model_epochs == 0 \
                      or epoch == config.num_epochs - 1

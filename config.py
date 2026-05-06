@@ -30,8 +30,8 @@ class TrainingConfig:
     degrees: float = 5.0              # max in-plane rotation (degrees)
     translate: tuple = (0.1, 0.1)    # max translation as fraction of img_size
     scale: tuple = (0.9, 1.1)        # isotropic zoom range
-    flip_p: float = 0.5              # left-right flip probability
-    apply_p: float = 0.9             # probability to apply affine augmentation
+    flip_p: float = 0.0              # left-right flip probability
+    apply_p: float = 0.5             # probability to apply affine augmentation
 
     # Guidance
     contour_guided: bool = True

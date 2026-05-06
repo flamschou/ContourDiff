@@ -54,7 +54,7 @@ class ContourDiffDDPMPipeline(DiffusionPipeline):
 
         img_ch = _img_channel(self.unet.config.in_channels, self.external_config)
 
-        if self.external_config.eval_batch_size is not None:
+        if batch_size == 1 and self.external_config.eval_batch_size is not None:
             batch_size = self.external_config.eval_batch_size
 
         if isinstance(self.unet.config.sample_size, int):
@@ -138,7 +138,7 @@ class ContourDiffDDIMPipeline(DiffusionPipeline):
 
         img_ch = _img_channel(self.unet.config.in_channels, self.external_config)
 
-        if self.external_config.eval_batch_size is not None:
+        if batch_size == 1 and self.external_config.eval_batch_size is not None:
             batch_size = self.external_config.eval_batch_size
 
         if isinstance(self.unet.config.sample_size, int):
